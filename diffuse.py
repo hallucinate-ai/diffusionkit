@@ -6,7 +6,7 @@ from loader import load
 from PIL import Image
 from ldm.models.diffusion.ddim import DDIMSampler
 from einops import rearrange, repeat
-from utils import create_random_tensors
+from utils import create_random_tensors, resize_image
 
 
 opt_C = 4
@@ -19,7 +19,7 @@ class DiffuseParams:
 	width: int = 512
 	height: int = 512
 	ddim_steps: int = 50
-	sampler_name: str = 'ddim'
+	sampler_name: str = 'lms'
 	cfg_scale: float = 5.0
 	denoising_strength: float = 0.75
 	seed: int = 0
@@ -62,44 +62,37 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 		image = np.array(image).astype(np.float32) / 255.0
 		image = image[None].transpose(0, 3, 1, 2)
 		image = torch.from_numpy(image)
-
-		#mask_channel = None
-		#if image_editor_mode == "Mask":
-		#	alpha = init_mask.convert("RGBA")
-		#	alpha = resize_image(resize_mode, alpha, width // 8, height // 8)
-		#	mask_channel = alpha.split()[1]
-
-		#mask = None
-		#if mask_channel is not None:
-		#	mask = np.array(mask_channel).astype(np.float32) / 255.0
-		#	mask = (1 - mask)
-		#	mask = np.tile(mask, (4, 1, 1))
-		#	mask = mask[None].transpose(0, 1, 2, 3)
-		#	mask = torch.from_numpy(mask).to(device)
-
-
 		image = 2. * image - 1.
-		images = repeat(image, '1 ... -> b ...', b=batch_size)
-		images = images.half()
-		images = images.cuda()
+		image = repeat(image, '1 ... -> b ...', b=batch_size)
+		image = image.half()
+		image = image.cuda()
 
 		init_latent = model.get_first_stage_encoding(
-			model.encode_first_stage(images)
+			model.encode_first_stage(image)
 		)
+
+		if mask:
+			alpha = mask.convert('RGBA')
+			alpha = resize_image(0, alpha, width // 8, height // 8)
+			mask = alpha.split()[1]
+			mask = np.array(mask).astype(np.float32) / 255.0
+			mask = np.tile(mask, (4, 1, 1))
+			mask = mask[None].transpose(0, 1, 2, 3)
+			mask = torch.from_numpy(mask)
+			mask = mask.half()
+			mask = mask.cuda()
+
 	else:
 		width = params.width
 		height = params.height
 
-	mask = None
-	masks = None
 
-	shape = [opt_C, height // opt_f, width // opt_f]
-
-	
 	with torch.no_grad(), torch.autocast('cuda'):
 		for i in range(0, params.count, batch_size):
 			batch_seeds = seeds[i:i+batch_size]
-			x = create_random_tensors(shape, seeds=batch_seeds)
+
+			x = create_random_tensors([opt_C, height // opt_f, width // opt_f], seeds=batch_seeds)
+			x = x.cuda()
 
 			t_enc_steps = int(params.denoising_strength * params.ddim_steps)
 			obliterate = False
@@ -108,33 +101,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 				t_enc_steps = t_enc_steps - 1
 				obliterate = True
 
-			if params.sampler_name != 'ddim':
-				sigmas = sampler.model_wrap.get_sigmas(params.ddim_steps)
-				noise = x * sigmas[params.ddim_steps - t_enc_steps - 1]
-				xi = init_latent + noise
-
-				if obliterate and masks is not None:
-					random = torch.randn(masks.shape, device=xi.device)
-					xi = (masks * noise) + ((1 - masks) * xi)
-
-				sigma_sched = sigmas[ddim_steps - t_enc_steps - 1:]
-				model_wrap_cfg = CFGMaskedDenoiser(sampler.model_wrap)
-				sampling_method = k_diffusion.sampling.__dict__[f'sample_{sampler.get_sampler_name()}']
-				samples_ddim = sampling_method(
-					model_wrap_cfg, 
-					xi, 
-					sigma_sched, 
-					extra_args={
-						'cond': conditioning, 
-						'uncond': conditioning_negative, 
-						'cond_scale': cfg_scale, 
-						'mask': z_mask, 
-						'x0': init_latent, 
-						'xi': xi
-					}, 
-					disable=False
-				)
-			else:
+			if params.sampler_name == 'ddim':
 				sampler.make_schedule(
 					ddim_num_steps=params.ddim_steps, 
 					ddim_eta=0.0, 
@@ -146,18 +113,43 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 					torch.tensor([t_enc_steps] * batch_size).cuda()
 				)
 
-				if obliterate and masks is not None:
-					random = torch.randn(masks.shape, device=z_enc.device)
-					z_enc = (masks * random) + ((1 - masks) * z_enc)
+				if obliterate and mask is not None:
+					random = torch.randn(mask.shape, device=z_enc.device)
+					z_enc = (mask * random) + ((1 - mask) * z_enc)
 
 				samples_ddim = sampler.decode(
-					z_enc, 
-					conditioning, 
+					z_enc,
+					conditioning,
 					t_enc_steps,
 					unconditional_guidance_scale=params.cfg_scale,
 					unconditional_conditioning=conditioning_negative,
-					z_mask=masks, 
+					z_mask=mask, 
 					x0=init_latent
+				)
+			else:
+				sigmas = sampler.model_wrap.get_sigmas(params.ddim_steps)
+				noise = x * sigmas[params.ddim_steps - t_enc_steps - 1]
+				xi = init_latent + noise
+
+				if obliterate and mask is not None:
+					xi = (mask * noise) + ((1 - mask) * xi)
+
+				sigma_sched = sigmas[params.ddim_steps - t_enc_steps - 1:]
+				model_wrap_cfg = CFGMaskedDenoiser(sampler.model_wrap)
+				sampling_method = k_diffusion.sampling.__dict__[f'sample_{sampler.get_sampler_name()}']
+				samples_ddim = sampling_method(
+					model_wrap_cfg, 
+					xi, 
+					sigma_sched, 
+					extra_args={
+						'cond': conditioning, 
+						'uncond': conditioning_negative, 
+						'cond_scale': params.cfg_scale, 
+						'mask': mask, 
+						'x0': init_latent, 
+						'xi': xi
+					}, 
+					disable=False
 				)
 
 			for i in range(len(samples_ddim)):
