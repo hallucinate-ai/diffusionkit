@@ -179,29 +179,13 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 
 
 
-class CFGDenoiser(torch.nn.Module):
-	def __init__(self, model):
-		super().__init__()
-		self.inner_model = model
-
-	def forward(self, x, sigma, uncond, cond, cond_scale):
-		x_in = torch.cat([x] * 2)
-		sigma_in = torch.cat([sigma] * 2)
-		cond_in = torch.cat([uncond, cond])
-		uncond, cond = self.inner_model(x_in, sigma_in, cond=cond_in).chunk(2)
-
-		return uncond + (cond - uncond) * cond_scale
-
-
-
 class CFGMaskedDenoiser(torch.nn.Module):
 	def __init__(self, model):
 		super().__init__()
 		self.inner_model = model
 
-	def forward(self, x, sigma, uncond, cond, cond_scale, mask, x0, xi):
-		x_in = x
-		x_in = torch.cat([x_in] * 2)
+	def forward(self, x, sigma, uncond, cond, cond_scale, mask = None, x0 = None, xi = None):
+		x_in = torch.cat([x] * 2)
 		sigma_in = torch.cat([sigma] * 2)
 		cond_in = torch.cat([uncond, cond])
 		uncond, cond = self.inner_model(x_in, sigma_in, cond=cond_in).chunk(2)
@@ -229,7 +213,7 @@ class KDiffusionSampler:
 	def sample(self, S, conditioning, batch_size, shape, verbose, unconditional_guidance_scale, unconditional_conditioning, eta, x_T, img_callback = None):
 		sigmas = self.model_wrap.get_sigmas(S)
 		x = x_T * sigmas[0]
-		model_wrap_cfg = CFGDenoiser(self.model_wrap)
+		model_wrap_cfg = CFGMaskedDenoiser(self.model_wrap)
 
 		sampling_method = k_diffusion.sampling.__dict__[f'sample_{self.schedule}']
 		samples_ddim = sampling_method(
