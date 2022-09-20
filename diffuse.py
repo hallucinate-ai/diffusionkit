@@ -2,11 +2,12 @@ import torch
 import numpy as np
 import k_diffusion
 from dataclasses import dataclass
-from loader import load
 from PIL import Image
-from ldm.models.diffusion.ddim import DDIMSampler
 from einops import rearrange, repeat
-from utils import create_random_tensors, resize_image
+
+from .loader import load
+from .ldm.models.diffusion.ddim import DDIMSampler
+from .utils import create_random_tensors, resize_image
 
 
 @dataclass

@@ -2,7 +2,8 @@ import os
 import importlib
 import torch
 from omegaconf import OmegaConf
-from config import checkpoint_files
+
+from .config import checkpoint_files
 
 
 models = dict()
