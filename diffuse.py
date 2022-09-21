@@ -4,6 +4,7 @@ import k_diffusion
 from dataclasses import dataclass
 from PIL import Image
 from einops import rearrange, repeat
+from math import ceil
 
 from .loader import load
 from .ldm.models.diffusion.ddim import DDIMSampler
@@ -53,9 +54,12 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 
 
 	if image:
-		width = image.size[0]
-		height = image.size[1]
+		params.width = image.width
+		params.height = image.height
+		width = ceil(image.width / 64) * 64
+		height = ceil(image.height / 64) * 64
 
+		image = resize_image(image, width, height)
 		image = image.convert('RGB')
 		image = np.array(image).astype(np.float32) / 255.0
 		image = image[None].transpose(0, 3, 1, 2)
@@ -69,8 +73,8 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 			model.encode_first_stage(image)
 		)
 	else:
-		width = params.width
-		height = params.height
+		width = ceil(params.width / 64) * 64
+		height = ceil(params.height / 64) * 64
 
 
 	width_condensed = width // 8
@@ -78,7 +82,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 
 	if mask:
 		alpha = mask.convert('RGBA')
-		alpha = resize_image(0, alpha, width_condensed, height_condensed)
+		alpha = resize_image(alpha, width=width_condensed, height=height_condensed)
 		mask = alpha.split()[1]
 		mask = np.array(mask).astype(np.float32) / 255.0
 		mask = np.tile(mask, (4, 1, 1))
@@ -174,6 +178,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 				x_sample = x_sample.astype(np.uint8)
 				
 				image = Image.fromarray(x_sample)
+				image = resize_image(image, params.width, params.height)
 				result_images.append(image)
 
 	return result_images

@@ -10,11 +10,15 @@ def create_random_tensors(shape, seeds):
 
 	return torch.stack(xs)
 
-def resize_image(resize_mode, im, width, height):
+def resize_image(im, width, height, mode='stretch'):
+	if im.width == width and im.height == height:
+		return
+
 	LANCZOS = (Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
-	if resize_mode == 0:
+
+	if mode == 'stretch':
 		res = im.resize((width, height), resample=LANCZOS)
-	elif resize_mode == 1:
+	elif mode == 'pad':
 		ratio = width / height
 		src_ratio = im.width / im.height
 
@@ -24,7 +28,7 @@ def resize_image(resize_mode, im, width, height):
 		resized = im.resize((src_w, src_h), resample=LANCZOS)
 		res = Image.new("RGBA", (width, height))
 		res.paste(resized, box=(width // 2 - src_w // 2, height // 2 - src_h // 2))
-	else:
+	elif mode == 'repeat':
 		ratio = width / height
 		src_ratio = im.width / im.height
 
