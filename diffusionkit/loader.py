@@ -9,6 +9,9 @@ from .config import checkpoint_files
 models = dict()
 
 def load(name):
+	if name in models:
+		return models[name]
+
 	if name not in checkpoint_files:
 		raise Exception('no checkpoint file path specified for model "%s"' % name)
 
