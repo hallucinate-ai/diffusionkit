@@ -23,7 +23,7 @@ def create_random_tensors(shape, seeds):
 
 def resize_image(im, width, height, mode='stretch'):
 	if im.width == width and im.height == height:
-		return
+		return im
 
 	LANCZOS = (Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
 
