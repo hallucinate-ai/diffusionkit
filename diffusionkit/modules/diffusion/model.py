@@ -6,7 +6,7 @@ import torch.nn as nn
 import numpy as np
 from einops import rearrange
 
-from ...util import instantiate_from_config
+from ...utils import instantiate_from_config
 from ..attention import LinearAttention
 
 

@@ -7,7 +7,7 @@ from einops import rearrange, repeat
 from math import ceil
 
 from .loader import load
-from .ldm.models.diffusion.ddim import DDIMSampler
+from .models.diffusion.ddim import DDIMSampler
 from .utils import create_random_tensors, resize_image
 
 

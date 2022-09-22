@@ -18,10 +18,10 @@ from tqdm import tqdm
 from torchvision.utils import make_grid
 from pytorch_lightning.utilities.distributed import rank_zero_only
 
-from ...util import log_txt_as_img, exists, default, ismap, isimage, mean_flat, count_params, instantiate_from_config
-from ...modules.distributions.distributions import normal_kl, DiagonalGaussianDistribution
+from ...utils import log_txt_as_img, exists, default, ismap, isimage, mean_flat, count_params, instantiate_from_config
+from ...modules.distributions import normal_kl, DiagonalGaussianDistribution
 from ...models.autoencoder import VQModelInterface, IdentityFirstStage, AutoencoderKL
-from ...modules.diffusionmodules.util import make_beta_schedule, extract_into_tensor, noise_like
+from ...modules.diffusion.util import make_beta_schedule, extract_into_tensor, noise_like
 from ...models.diffusion.ddim import DDIMSampler
 
 

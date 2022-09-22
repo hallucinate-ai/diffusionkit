@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import nn, einsum
 from einops import rearrange, repeat
 
-from .diffusionmodules.util import checkpoint
+from .diffusion.util import checkpoint
 
 import psutil
 
