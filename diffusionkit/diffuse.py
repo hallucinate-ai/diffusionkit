@@ -78,7 +78,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 
 
 	width_condensed = width // 8
-	height_condensed = width // 8
+	height_condensed = height // 8
 
 	if mask:
 		alpha = mask.convert('RGBA')
