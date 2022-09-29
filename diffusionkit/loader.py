@@ -1,6 +1,7 @@
 import os
 import importlib
 import torch
+import gc
 from omegaconf import OmegaConf
 
 from .config import checkpoint_files
@@ -33,3 +34,15 @@ def load(name):
 	models[name] = model
 
 	return model
+
+def unload(name):
+	if name not in models:
+		return
+
+	print(torch.cuda.memory_allocated())
+
+	del models[name]
+	gc.collect()
+	torch.cuda.empty_cache()
+
+	print(torch.cuda.memory_allocated())
