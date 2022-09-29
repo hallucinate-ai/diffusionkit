@@ -18,7 +18,7 @@ class DDIMSampler(object):
                 attr = attr.to(torch.device("cuda"))
         setattr(self, name, attr)
 
-    def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
+    def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=False):
         self.ddim_timesteps = make_ddim_timesteps(ddim_discr_method=ddim_discretize, num_ddim_timesteps=ddim_num_steps,
                                                   num_ddpm_timesteps=self.ddpm_num_timesteps,verbose=verbose)
         alphas_cumprod = self.model.alphas_cumprod
@@ -66,7 +66,7 @@ class DDIMSampler(object):
                noise_dropout=0.,
                score_corrector=None,
                corrector_kwargs=None,
-               verbose=True,
+               verbose=False,
                x_T=None,
                log_every_t=100,
                unconditional_guidance_scale=1.,
@@ -129,9 +129,10 @@ class DDIMSampler(object):
         intermediates = {'x_inter': [img], 'pred_x0': [img]}
         time_range = reversed(range(0,timesteps)) if ddim_use_original_steps else np.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        #print(f"Running DDIM Sampling with {total_steps} timesteps")
 
-        iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps)
+        #iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps)
+        iterator = time_range
 
         for i, step in enumerate(iterator):
             index = total_steps - i - 1
@@ -224,9 +225,11 @@ class DDIMSampler(object):
 
         time_range = np.flip(timesteps)
         total_steps = timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        #print(f"Running DDIM Sampling with {total_steps} timesteps")
 
-        iterator = tqdm(time_range, desc='Decoding image', total=total_steps)
+        #iterator = tqdm(time_range, desc='Decoding image', total=total_steps)
+        iterator = time_range
+
         x_dec = x_latent
         for i, step in enumerate(iterator):
             index = total_steps - i - 1

@@ -251,7 +251,8 @@ class DDPM(pl.LightningModule):
 		b = shape[0]
 		img = torch.randn(shape, device=device)
 		intermediates = [img]
-		for i in tqdm(reversed(range(0, self.num_timesteps)), desc='Sampling t', total=self.num_timesteps):
+		#for i in tqdm(reversed(range(0, self.num_timesteps)), desc='Sampling t', total=self.num_timesteps):
+		for i in reversed(range(0, self.num_timesteps)):
 			img = self.p_sample(img, torch.full((b,), i, device=device, dtype=torch.long),
 								clip_denoised=self.clip_denoised)
 			if i % self.log_every_t == 0 or i == self.num_timesteps - 1:
@@ -525,7 +526,8 @@ class LatentDiffusion(DDPM):
 
 	def _get_denoise_row_from_list(self, samples, desc='', force_no_decoder_quantization=False):
 		denoise_row = []
-		for zd in tqdm(samples, desc=desc):
+		#for zd in tqdm(samples, desc=desc):
+		for zd in samples:
 			denoise_row.append(self.decode_first_stage(zd.to(self.device),
 															force_not_quantize=force_no_decoder_quantization))
 		n_imgs_per_row = len(denoise_row)
@@ -1079,7 +1081,7 @@ class LatentDiffusion(DDPM):
 			return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
 
 	@torch.no_grad()
-	def progressive_denoising(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,
+	def progressive_denoising(self, cond, shape, verbose=False, callback=None, quantize_denoised=False,
 							  img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
 							  score_corrector=None, corrector_kwargs=None, batch_size=None, x_T=None, start_T=None,
 							  log_every_t=None):
@@ -1136,7 +1138,7 @@ class LatentDiffusion(DDPM):
 
 	@torch.no_grad()
 	def p_sample_loop(self, cond, shape, return_intermediates=False,
-					  x_T=None, verbose=True, callback=None, timesteps=None, quantize_denoised=False,
+					  x_T=None, verbose=False, callback=None, timesteps=None, quantize_denoised=False,
 					  mask=None, x0=None, img_callback=None, start_T=None,
 					  log_every_t=None):
 
@@ -1187,7 +1189,7 @@ class LatentDiffusion(DDPM):
 
 	@torch.no_grad()
 	def sample(self, cond, batch_size=16, return_intermediates=False, x_T=None,
-			   verbose=True, timesteps=None, quantize_denoised=False,
+			   verbose=False, timesteps=None, quantize_denoised=False,
 			   mask=None, x0=None, shape=None,**kwargs):
 		if shape is None:
 			shape = (batch_size, self.channels, self.image_size, self.image_size)
