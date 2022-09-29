@@ -21,7 +21,7 @@ class PLMSSampler(object):
                 attr = attr.to(torch.device("cuda"))
         setattr(self, name, attr)
 
-    def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
+    def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=False):
         if ddim_eta != 0:
             raise ValueError('ddim_eta must be 0 for PLMS')
         self.ddim_timesteps = make_ddim_timesteps(ddim_discr_method=ddim_discretize, num_ddim_timesteps=ddim_num_steps,
@@ -71,7 +71,7 @@ class PLMSSampler(object):
                noise_dropout=0.,
                score_corrector=None,
                corrector_kwargs=None,
-               verbose=True,
+               verbose=False,
                x_T=None,
                log_every_t=100,
                unconditional_guidance_scale=1.,
@@ -136,7 +136,8 @@ class PLMSSampler(object):
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
         print(f"Running PLMS Sampling with {total_steps} timesteps")
 
-        iterator = tqdm(time_range, desc='PLMS Sampler', total=total_steps)
+        #iterator = tqdm(time_range, desc='PLMS Sampler', total=total_steps)
+        iterator = time_range
         old_eps = []
 
         for i, step in enumerate(iterator):

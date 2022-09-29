@@ -1,12 +1,13 @@
 import torch
 import numpy as np
-import k_diffusion
 from dataclasses import dataclass
 from PIL import Image
 from einops import rearrange, repeat
 from math import ceil
 
 from .loader import load
+from .modules import sampling
+from .modules.denoisers import CompVisDenoiser
 from .models.diffusion.ddim import DDIMSampler
 from .utils import create_random_tensors, resize_image
 
@@ -154,7 +155,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 
 					sigma_sched = sigmas[params.ddim_steps - t_enc_steps - 1:]
 					model_wrap_cfg = CFGMaskedDenoiser(sampler.model_wrap)
-					sampling_method = k_diffusion.sampling.__dict__[f'sample_{sampler.get_sampler_name()}']
+					sampling_method = sampling.__dict__[f'sample_{sampler.get_sampler_name()}']
 					samples_ddim = sampling_method(
 						model_wrap_cfg, 
 						xi, 
@@ -166,8 +167,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 							'mask': mask, 
 							'x0': init_latent, 
 							'xi': xi
-						}, 
-						disable=False
+						}
 					)
 				
 
@@ -210,7 +210,7 @@ class CFGMaskedDenoiser(torch.nn.Module):
 class KDiffusionSampler:
 	def __init__(self, m, sampler):
 		self.model = m
-		self.model_wrap = k_diffusion.external.CompVisDenoiser(m)
+		self.model_wrap = CompVisDenoiser(m)
 		self.schedule = sampler
 
 	def get_sampler_name(self):
@@ -221,7 +221,7 @@ class KDiffusionSampler:
 		x = x_T * sigmas[0]
 		model_wrap_cfg = CFGMaskedDenoiser(self.model_wrap)
 
-		sampling_method = k_diffusion.sampling.__dict__[f'sample_{self.schedule}']
+		sampling_method = sampling.__dict__[f'sample_{self.schedule}']
 		samples_ddim = sampling_method(
 			model_wrap_cfg, 
 			x, 
@@ -230,8 +230,7 @@ class KDiffusionSampler:
 				'cond': conditioning, 
 				'uncond': unconditional_conditioning, 
 				'cond_scale': unconditional_guidance_scale
-			}, 
-			disable=False
+			}
 		)
 
 		return samples_ddim, None

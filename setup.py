@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name='diffusionkit',
-	version='0.11',
+	version='0.12',
 	packages=[
 		'diffusionkit',
 		'diffusionkit.configs',
@@ -15,8 +15,7 @@ setup(
 		'einops',
 		'omegaconf',
 		'transformers',
-		'pytorch-lightning',
-		'k_diffusion @ git+https://github.com/hlky/k-diffusion-sd#egg=k_diffusion'
+		'pytorch-lightning'
 	],
 	package_data={
 		'diffusionkit.configs': ['*.yaml']
