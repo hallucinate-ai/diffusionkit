@@ -12,6 +12,8 @@ setup(
 		'diffusionkit.modules.diffusion',
 	],
 	install_requires=[
+		'scipy',
+		'torchdiffeq',
 		'einops',
 		'omegaconf',
 		'transformers',
