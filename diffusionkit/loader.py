@@ -4,7 +4,7 @@ import torch
 import gc
 from omegaconf import OmegaConf
 
-from .config import checkpoint_files
+from . import config
 
 
 models = dict()
@@ -13,19 +13,19 @@ def load(name):
 	if name in models:
 		return models[name]
 
-	if name not in checkpoint_files:
-		raise Exception('no checkpoint file path specified for model "%s"' % name)
+	if name not in config.weights:
+		raise Exception('no weights file path specified for model "%s"' % name)
 
-	checkpoint_path = checkpoint_files[name]
-	config = OmegaConf.load(
+	weightfile = config.weights[name]
+	conf = OmegaConf.load(
 		os.path.join(os.path.dirname(__file__), 'configs', '%s.yaml' % name)
 	)
 
-	modulename, classname = config.model.target.rsplit('.', 1)
+	modulename, classname = conf.model.target.rsplit('.', 1)
 	module = importlib.import_module(modulename)
 	cls = getattr(module, classname)
-	model = cls(**config.model.get("params", dict()))
-	checkpoint = torch.load(checkpoint_path, map_location='cpu')
+	model = cls(**conf.model.get("params", dict()))
+	checkpoint = torch.load(weightfile, map_location='cpu')
 
 	model.load_state_dict(checkpoint['state_dict'], strict=False)
 	model.half()

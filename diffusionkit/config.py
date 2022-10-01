@@ -1,1 +1,1 @@
-checkpoint_files = dict()
+weights = dict()
