@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from functools import partial
 from transformers import CLIPTokenizer, CLIPTextModel, logging
+from .. import config
 
 
 logging.set_verbosity_error()
@@ -16,11 +17,14 @@ class AbstractEncoder(nn.Module):
 
 
 class FrozenCLIPEmbedder(AbstractEncoder):
-	"""Uses the CLIP transformer encoder for text (from Hugging Face)"""
-	def __init__(self, version="openai/clip-vit-large-patch14", device="cuda", max_length=77):
+	def __init__(self, device='cuda', max_length=77):
 		super().__init__()
-		self.tokenizer = CLIPTokenizer.from_pretrained(version)
-		self.transformer = CLIPTextModel.from_pretrained(version)
+		
+		if 'clip' not in config.weights:
+			raise Exception('no weights file path specified for model "clip"')
+		
+		self.tokenizer = CLIPTokenizer.from_pretrained(config.weights['clip'], local_files_only=True)
+		self.transformer = CLIPTextModel.from_pretrained(config.weights['clip'], local_files_only=True)
 		self.device = device
 		self.max_length = max_length
 		self.freeze()
@@ -31,13 +35,20 @@ class FrozenCLIPEmbedder(AbstractEncoder):
 			param.requires_grad = False
 
 	def forward(self, text):
-		batch_encoding = self.tokenizer(text, truncation=True, max_length=self.max_length, return_length=True,
-										return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
-		tokens = batch_encoding["input_ids"].to(self.device)
+		batch_encoding = self.tokenizer(
+			text, 
+			truncation=True, 
+			max_length=self.max_length, 
+			return_length=True, 
+			return_overflowing_tokens=False, 
+			padding='max_length', 
+			return_tensors='pt'
+		)
+
+		tokens = batch_encoding['input_ids'].to(self.device)
 		outputs = self.transformer(input_ids=tokens)
 
-		z = outputs.last_hidden_state
-		return z
+		return outputs.last_hidden_state
 
 	def encode(self, text):
 		return self(text)
