@@ -12,12 +12,11 @@ setup(
 		'diffusionkit.modules.diffusion',
 	],
 	install_requires=[
+		'Pillow',
 		'scipy',
-		'torchdiffeq',
 		'einops',
 		'omegaconf',
-		'transformers',
-		'pytorch-lightning'
+		'transformers'
 	],
 	package_data={
 		'diffusionkit.configs': ['*.yaml']

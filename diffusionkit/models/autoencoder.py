@@ -1,12 +1,11 @@
 import torch
-import pytorch_lightning as pl
 import torch.nn.functional as F
 from ..modules.diffusion.model import Encoder, Decoder
 from ..modules.distributions import DiagonalGaussianDistribution
 from ..utils import instantiate_from_config
 
 
-class AutoencoderKL(pl.LightningModule):
+class AutoencoderKL(torch.nn.Module):
 	def __init__(self,
 				 ddconfig,
 				 lossconfig,
