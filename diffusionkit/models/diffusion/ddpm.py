@@ -71,6 +71,7 @@ class DDPM(nn.Module):
 				 ):
 		super().__init__()
 		assert parameterization in ["eps", "x0"], 'currently only supporting "eps" and "x0"'
+		self.device = 'cuda'
 		self.parameterization = parameterization
 		#print(f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode")
 		self.cond_stage_model = None

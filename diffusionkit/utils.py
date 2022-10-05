@@ -11,6 +11,15 @@ from inspect import isfunction
 from PIL import Image, ImageDraw, ImageFont
 
 
+def make_sampling_progress_iterator(iterator, callback, total=None):
+    i = 0
+    c = total if total else len(iterator)
+
+    for item in iterator:
+        i += 1
+        callback('sample', i / c)
+        yield item
+
 def append_dims(x, target_dims):
     """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
     dims_to_append = target_dims - x.ndim

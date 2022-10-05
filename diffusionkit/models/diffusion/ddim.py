@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from functools import partial
 from ...modules.diffusion.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like, extract_into_tensor
+from ...utils import make_sampling_progress_iterator
 
 
 class DDIMSampler(object):
@@ -102,7 +103,7 @@ class DDIMSampler(object):
                                                     x_T=x_T,
                                                     log_every_t=log_every_t,
                                                     unconditional_guidance_scale=unconditional_guidance_scale,
-                                                    unconditional_conditioning=unconditional_conditioning,
+                                                    unconditional_conditioning=unconditional_conditioning
                                                     )
         return samples, intermediates
 
@@ -112,7 +113,7 @@ class DDIMSampler(object):
                       callback=None, timesteps=None, quantize_denoised=False,
                       mask=None, x0=None, img_callback=None, log_every_t=100,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None,):
+                      unconditional_guidance_scale=1., unconditional_conditioning=None):
         device = self.model.betas.device
         b = shape[0]
         if x_T is None:
@@ -162,7 +163,7 @@ class DDIMSampler(object):
     @torch.no_grad()
     def p_sample_ddim(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None):
+                      unconditional_guidance_scale=1., unconditional_conditioning=None, progress_callback=None):
         b, *_, device = *x.shape, x.device
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
@@ -218,7 +219,7 @@ class DDIMSampler(object):
 
     @torch.no_grad()
     def decode(self, x_latent, cond, t_start, unconditional_guidance_scale=1.0, unconditional_conditioning=None,
-               use_original_steps=False, z_mask = None, x0=None):
+               use_original_steps=False, z_mask = None, x0=None, progress_callback=None,):
 
         timesteps = np.arange(self.ddpm_num_timesteps) if use_original_steps else self.ddim_timesteps
         timesteps = timesteps[:t_start]
@@ -229,8 +230,11 @@ class DDIMSampler(object):
 
         #iterator = tqdm(time_range, desc='Decoding image', total=total_steps)
         iterator = time_range
-
         x_dec = x_latent
+
+        if progress_callback:
+            iterator = make_sampling_progress_iterator(time_range, progress_callback)
+
         for i, step in enumerate(iterator):
             index = total_steps - i - 1
             ts = torch.full((x_latent.shape[0],), step, device=x_latent.device, dtype=torch.long)
@@ -243,5 +247,6 @@ class DDIMSampler(object):
 
             x_dec, _ = self.p_sample_ddim(x_dec, cond, ts, index=index, use_original_steps=use_original_steps,
                                           unconditional_guidance_scale=unconditional_guidance_scale,
-                                          unconditional_conditioning=unconditional_conditioning)
+                                          unconditional_conditioning=unconditional_conditioning,
+                                          progress_callback=progress_callback)
         return x_dec

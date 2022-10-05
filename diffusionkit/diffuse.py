@@ -26,9 +26,14 @@ class DiffuseParams:
 
 
 
-def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
+def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None, progress_callback = None):
 	assert 0. <= params.denoising_strength <= 1, 'denoising_strength must be between [0.0, 1.0]'
 	assert image is not None if mask is not None else True, 'image must be set if mask is set'
+
+	if not progress_callback:
+		progress_callback = lambda s,p=None: 0
+
+	progress_callback('init')
 
 	result_images = []
 	batch_size = 1
@@ -38,7 +43,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 		sampler = DDIMSampler(model)
 	else:
 		sampler = KDiffusionSampler(model, params.sampler_name)
-	
+
 
 	prompt = params.prompt
 	prompt_negative = ''
@@ -69,10 +74,6 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 		image = repeat(image, '1 ... -> b ...', b=batch_size)
 		image = image.half()
 		image = image.cuda()
-
-		init_latent = model.get_first_stage_encoding(
-			model.encode_first_stage(image)
-		)
 	else:
 		width = ceil(params.width / 64) * 64
 		height = ceil(params.height / 64) * 64
@@ -93,6 +94,14 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 		mask = mask.cuda()
 
 
+	if image is not None:
+		progress_callback('encode')
+
+		init_latent = model.get_first_stage_encoding(
+			model.encode_first_stage(image)
+		)
+
+
 	with torch.no_grad(), torch.autocast('cuda'):
 		for i in range(0, params.count, batch_size):
 			batch_seeds = seeds[i:i+batch_size]
@@ -111,6 +120,7 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 					eta=0.0,
 					x_T=x,
 					verbose=False,
+					progress_callback=progress_callback
 				)
 			else:
 				t_enc_steps = int(params.denoising_strength * params.ddim_steps)
@@ -143,7 +153,8 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 						unconditional_guidance_scale=params.cfg_scale,
 						unconditional_conditioning=conditioning_negative,
 						z_mask=mask, 
-						x0=init_latent
+						x0=init_latent,
+						progress_callback=progress_callback
 					)
 				else:
 					sigmas = sampler.model_wrap.get_sigmas(params.ddim_steps)
@@ -167,9 +178,12 @@ def diffuse(params: DiffuseParams, image: Image = None, mask: Image = None):
 							'mask': mask, 
 							'x0': init_latent, 
 							'xi': xi
-						}
+						},
+						progress_callback=progress_callback
 					)
 				
+
+			progress_callback('decode')
 
 			for i in range(len(samples_ddim)):
 				x_sample = model.decode_first_stage(samples_ddim[i].unsqueeze(0))
@@ -216,7 +230,7 @@ class KDiffusionSampler:
 	def get_sampler_name(self):
 		return self.schedule
 
-	def sample(self, S, conditioning, batch_size, shape, verbose, unconditional_guidance_scale, unconditional_conditioning, eta, x_T, img_callback = None):
+	def sample(self, S, conditioning, batch_size, shape, verbose, unconditional_guidance_scale, unconditional_conditioning, eta, x_T, progress_callback):
 		sigmas = self.model_wrap.get_sigmas(S)
 		x = x_T * sigmas[0]
 		model_wrap_cfg = CFGMaskedDenoiser(self.model_wrap)
@@ -230,7 +244,8 @@ class KDiffusionSampler:
 				'cond': conditioning, 
 				'uncond': unconditional_conditioning, 
 				'cond_scale': unconditional_guidance_scale
-			}
+			},
+			progress_callback=progress_callback
 		)
 
 		return samples_ddim, None
