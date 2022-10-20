@@ -1,3 +1,6 @@
+from diffusionkit.modules.utils import resize_image
+
+
 progress_callback = None
 progress_stages = [
 	('init', 1),
@@ -5,6 +8,9 @@ progress_stages = [
 	('sample', 1),
 	('decode', 1)
 ]
+
+intermediate_callback = None
+intermediate_count = None
 
 class DiffusionContext:
 	def __init__(self, params, image):
@@ -14,6 +20,8 @@ class DiffusionContext:
 		self.progress_callback = progress_callback
 		self.progress_stage = None
 		self.progress_sample = 0
+		self.intermediate_callback = intermediate_callback
+		self.intermediate_count = intermediate_count
 		self.finished = False
 
 
@@ -56,6 +64,15 @@ class DiffusionContext:
 		self.progress_callback(points / total_points, self.progress_stage)
 
 
+	def wants_intermediate(self):
+		return True
+
+	def put_intermediate(self, images):
+		for image in images:
+			image = resize_image(image, self.params.width, self.params.height)
+			self.intermediate_callback(image)
+
+
 	def finish(self):
 		self.finished = True
 		self.dispatch_progress()
@@ -63,7 +80,7 @@ class DiffusionContext:
 
 
 
-class progress_tracking():
+class progress_tracking:
 	def __init__(self, callback):
 		self.callback = callback
 
@@ -76,3 +93,21 @@ class progress_tracking():
 	def __exit__(self, type, value, traceback):
 		global progress_callback
 		progress_callback = None
+
+
+class intermediates:
+	def __init__(self, callback, count=None):
+		self.callback = callback
+		self.count = count
+
+
+	def __enter__(self):
+		global intermediate_callback
+		global intermediate_count
+		intermediate_callback = self.callback
+		intermediate_count = self.count
+		
+
+	def __exit__(self, type, value, traceback):
+		global intermediate_callback
+		intermediate_callback = None

@@ -6,7 +6,7 @@ from math import ceil
 
 from .loader import load
 from .modules.samplers.common import SamplerInterface
-from .modules.utils import create_random_tensors, resize_image
+from .modules.utils import create_random_tensors, latent_to_images, resize_image
 from .context import DiffusionContext
 
 
@@ -53,7 +53,6 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 	uncond = model.get_learned_conditioning([prompt_negative] * params.count)
 
 	sampler.use_model(model)
-	
 
 	if image:
 		image = resize_image(image, width, height)
@@ -67,9 +66,9 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 		image = image.cuda()
 
 	if mask:
-		alpha = mask.convert('RGBA')
-		alpha = resize_image(alpha, width=width_latent, height=height_latent)
-		mask = alpha.split()[1]
+		mask = mask.convert('RGBA')
+		mask = resize_image(mask, width=width_latent, height=height_latent)
+		mask = mask.split()[1]
 		mask = np.array(mask).astype(np.float32) / 255.0
 		mask = np.tile(mask, (4, 1, 1))
 		mask = mask[None].transpose(0, 1, 2, 3)
@@ -78,7 +77,6 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 		mask = mask.cuda()
 
 
-	
 	with torch.no_grad(), torch.autocast('cuda'):
 		if image is not None:
 			denoising_steps = int(
@@ -94,6 +92,7 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 			)
 		else:
 			denoising_steps = params.steps
+			ctx.report_sampling_steps(denoising_steps)
 
 
 		for i in range(0, params.count, batch_size):
@@ -149,16 +148,12 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 
 			ctx.report_stage('decode')
 
-			for i in range(len(samples)):
-				x_sample = model.decode_first_stage(samples[i].unsqueeze(0))
-				x_sample = torch.clamp((x_sample + 1.0) / 2.0, min=0.0, max=1.0)
-				x_sample = x_sample[0].cpu().numpy()
-				x_sample = 255. * np.transpose(x_sample, (1, 2, 0))
-				x_sample = x_sample.astype(np.uint8)
-				
-				image = Image.fromarray(x_sample)
+			images = latent_to_images(samples, model)
+
+			for image in images:
 				image = resize_image(image, params.width, params.height)
 				result_images.append(image)
+
 
 	ctx.finish()
 

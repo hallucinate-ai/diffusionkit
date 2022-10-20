@@ -10,6 +10,23 @@ from PIL import Image, ImageDraw, ImageFont
 from scipy import integrate
 
 
+def latent_to_images(latent, model):
+	x_samples = model.decode_first_stage(latent)
+	images = []
+
+	for i in range(len(x_samples)):
+		x_sample = x_samples[i]
+		x_sample = torch.clamp((x_sample + 1.0) / 2.0, min=0.0, max=1.0)
+		x_sample = x_sample.cpu().numpy()
+		x_sample = 255. * np.transpose(x_sample, (1, 2, 0))
+		x_sample = x_sample.astype(np.uint8)
+		
+		image = Image.fromarray(x_sample)
+		images.append(image)
+	
+	return images
+
+
 def to_d(x, sigma, denoised):
 	'''Converts a denoiser output to a Karras ODE derivative.'''
 	return (x - denoised) / append_dims(sigma, x.ndim)

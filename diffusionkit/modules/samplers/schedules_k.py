@@ -1,7 +1,7 @@
 import torch
 import math
 
-from ..utils import to_d, linear_multistep_coeff, get_ancestral_step
+from ..utils import latent_to_images, to_d, linear_multistep_coeff, get_ancestral_step
 
 
 def schedule_euler(ctx, denoiser, x, sigmas, cond, uncond, init_latent, mask, s_churn=0., s_tmin=0., s_tmax=float('inf'), s_noise=1.):
@@ -216,6 +216,7 @@ def sample_dpm_2_ancestral(ctx, denoiser, x, sigmas, cond, uncond, init_latent, 
 
 	return x
 
+
 def schedule_lms(ctx, denoiser, x, sigmas, cond, uncond, init_latent, mask, order=4):
 	steps = len(sigmas) - 1
 	s_in = x.new_ones([x.shape[0]])
@@ -238,6 +239,11 @@ def schedule_lms(ctx, denoiser, x, sigmas, cond, uncond, init_latent, mask, orde
 
 		if len(ds) > order:
 			ds.pop(0)
+
+		if ctx.wants_intermediate():
+			ctx.put_intermediate(
+				latent_to_images(denoised, model=denoiser.inner_model)
+			)
 
 		coeffs = [
 			linear_multistep_coeff(cur_order, sigmas.cpu(), i, j) 
