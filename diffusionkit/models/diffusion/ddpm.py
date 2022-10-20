@@ -16,7 +16,7 @@ from functools import partial
 from tqdm import tqdm
 from torchvision.utils import make_grid
 
-from ...utils import log_txt_as_img, exists, default, ismap, isimage, mean_flat, count_params, instantiate_from_config
+from ...modules.utils import log_txt_as_img, exists, default, ismap, isimage, mean_flat, count_params, instantiate_from_config
 from ...modules.distributions import normal_kl, DiagonalGaussianDistribution
 from ...models.autoencoder import IdentityFirstStage, AutoencoderKL
 from ...modules.diffusion.util import make_beta_schedule, extract_into_tensor, noise_like
