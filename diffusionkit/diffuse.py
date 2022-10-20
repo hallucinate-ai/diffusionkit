@@ -14,8 +14,8 @@ from .context import DiffusionContext
 class DiffuseParams:
 	prompt: str
 	prompt_negative: str = ''
-	width: int = 512
-	height: int = 512
+	width: int = None
+	height: int = None
 	steps: int = 50
 	cfg_scale: float = 5.0
 	denoising_strength: float = 0.75
