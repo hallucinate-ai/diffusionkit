@@ -119,32 +119,6 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 					init_latent=init_latent, 
 					mask=mask
 				)
-	
-				'''
-				if params.sampler_name == 'ddim':
-					sampler.make_schedule(
-						ddim_num_steps=params.ddim_steps, 
-						ddim_eta=0.0, 
-						verbose=False
-					)
-
-					z_enc = sampler.stochastic_encode(
-						init_latent, 
-						torch.tensor([t_enc_steps] * batch_size).cuda()
-					)
-
-					samples_ddim = sampler.decode(
-						z_enc,
-						conditioning,
-						t_enc_steps,
-						unconditional_guidance_scale=params.cfg_scale,
-						unconditional_conditioning=conditioning_negative,
-						z_mask=mask, 
-						x0=init_latent,
-						progress_callback=progress_callback
-					)
-				'''
-				
 
 			ctx.report_stage('decode')
 
