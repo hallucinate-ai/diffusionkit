@@ -1,26 +1,15 @@
 import torch
 import numpy as np
-from dataclasses import dataclass
 from PIL import Image
 from math import ceil
 
 from .loader import load
-from .modules.samplers.common import SamplerInterface
+from .interfaces import DiffuseParams, SamplerInterface
 from .modules.utils import create_random_tensors, latent_to_images, resize_image
 from .context import DiffusionContext
 
 
-@dataclass
-class DiffuseParams:
-	prompt: str
-	prompt_negative: str = ''
-	width: int = None
-	height: int = None
-	steps: int = 50
-	cfg_scale: float = 5.0
-	denoising_strength: float = 0.75
-	seed: int = 0
-	count: int = 1
+
 
 
 
