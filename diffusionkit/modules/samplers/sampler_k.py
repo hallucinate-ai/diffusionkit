@@ -1,13 +1,13 @@
+from diffusionkit.modules.utils import latent_to_images
 from .common import SamplerInterface
 from .schedules_k import __dict__ as schedules
 from ..denoisers import MaskedCompVisDenoiser
 
 
 class KSampler(SamplerInterface):
-	def __init__(self, schedule, **opts):
+	def __init__(self, schedule, **schedule_args):
 		self.schedule = schedule
-		self.scheduler = schedules['schedule_%s' % schedule]
-		self.opts = opts
+		self.schedule_args = schedule_args
 
 
 	def use_model(self, model):
@@ -25,18 +25,31 @@ class KSampler(SamplerInterface):
 			sigmas = sigmas[offset:]
 		else:
 			x = noise * sigmas[0]
+			
 
-		
-		return self.scheduler(
-			ctx=ctx,
-			denoiser=self.denoiser,
-			x=x,
-			sigmas=sigmas,
-			cond=cond,
-			uncond=uncond,
-			init_latent=init_latent,
-			mask=mask,
-			**self.opts
-		)
+		def denoise(x, sigma):
+			denoised = self.denoiser(
+				x, 
+				sigma=sigma, 
+				cond=cond, 
+				uncond=uncond, 
+				cond_scale=ctx.params.cfg_scale, 
+				init_latent=init_latent, 
+				mask=mask
+			)
+
+			if ctx.wants_intermediate():
+				ctx.put_intermediate(latent_to_images(denoised, model=self.model))
+
+			return denoised
 
 
+		schedule = schedules['schedule_%s' % self.schedule]
+		scheduler = schedule(sigmas, denoise=denoise, **self.schedule_args)
+
+		steps = len(sigmas) - 1
+
+		for i in ctx.make_sampling_iter(range(steps)):
+			x = scheduler.step(x, i)
+
+		return x
