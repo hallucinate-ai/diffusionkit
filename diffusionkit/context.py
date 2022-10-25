@@ -65,7 +65,7 @@ class DiffusionContext:
 
 
 	def wants_intermediate(self):
-		return True
+		return self.intermediate_callback is not None
 
 	def put_intermediate(self, images):
 		for image in images:
