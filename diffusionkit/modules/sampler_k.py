@@ -1,6 +1,5 @@
 import torch
 
-from .utils import latent_to_images
 from ..interfaces import SamplerInterface
 from .denoisers import MaskedCompVisDenoiser
 from .utils import latent_to_images, to_d, linear_multistep_coeff, get_ancestral_step

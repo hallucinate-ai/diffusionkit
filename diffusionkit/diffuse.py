@@ -59,8 +59,8 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 		mask = resize_image(mask, width=width_latent, height=height_latent)
 		mask = mask.split()[1]
 		mask = np.array(mask).astype(np.float32) / 255.0
+		mask = np.transpose(mask, (0, 1, 2))
 		mask = np.tile(mask, (4, 1, 1))
-		mask = mask[None].transpose(0, 1, 2, 3)
 		mask = torch.from_numpy(mask)
 		mask = mask.half()
 		mask = mask.cuda()
@@ -76,9 +76,8 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 			ctx.report_sampling_steps(denoising_steps)
 			ctx.report_stage('encode')
 
-			init_latent = model.get_first_stage_encoding(
-				model.encode_first_stage(image)
-			)
+			first_encoding = model.encode_first_stage(image)
+			init_latent = model.get_first_stage_encoding(first_encoding)
 		else:
 			denoising_steps = params.steps
 			ctx.report_sampling_steps(denoising_steps)
