@@ -59,7 +59,7 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 		mask = resize_image(mask, width=width_latent, height=height_latent)
 		mask = mask.split()[1]
 		mask = np.array(mask).astype(np.float32) / 255.0
-		mask = np.transpose(mask, (0, 1, 2))
+		mask = np.expand_dims(mask, axis=0)
 		mask = np.tile(mask, (4, 1, 1))
 		mask = torch.from_numpy(mask)
 		mask = mask.half()
