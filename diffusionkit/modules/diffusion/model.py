@@ -7,7 +7,6 @@ import numpy as np
 from einops import rearrange
 
 from ..utils import instantiate_from_config
-from ..attention import LinearAttention
 
 
 def get_timestep_embedding(timesteps, embedding_dim):
@@ -152,12 +151,6 @@ class ResnetBlock(nn.Module):
 				x = self.nin_shortcut(x)
 
 		return x + h8
-
-
-class LinAttnBlock(LinearAttention):
-	"""to match AttnBlock usage"""
-	def __init__(self, in_channels):
-		super().__init__(dim=in_channels, heads=1, dim_head=in_channels)
 
 
 class AttnBlock(nn.Module):
