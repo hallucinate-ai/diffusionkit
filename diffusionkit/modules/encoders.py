@@ -17,14 +17,11 @@ class AbstractEncoder(nn.Module):
 
 
 class FrozenCLIPEmbedder(AbstractEncoder):
-	def __init__(self, device='cuda', max_length=77):
+	def __init__(self, weights_file, device='cuda', max_length=77):
 		super().__init__()
 		
-		if 'clip' not in config.weights:
-			raise Exception('no weights file path specified for model "clip"')
-		
-		self.tokenizer = CLIPTokenizer.from_pretrained(config.weights['clip'], local_files_only=True)
-		self.transformer = CLIPTextModel.from_pretrained(config.weights['clip'], local_files_only=True)
+		self.tokenizer = CLIPTokenizer.from_pretrained(weights_file, local_files_only=True)
+		self.transformer = CLIPTextModel.from_pretrained(weights_file, local_files_only=True)
 		self.device = device
 		self.max_length = max_length
 		self.freeze()

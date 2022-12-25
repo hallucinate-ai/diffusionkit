@@ -3,13 +3,11 @@ import numpy as np
 from PIL import Image
 from math import ceil
 
-from .loader import load
+from . import config
+from .loader import load_stable_diffusion
 from .interfaces import DiffuseParams, SamplerInterface
 from .modules.utils import create_random_tensors, latent_to_images, resize_image
 from .context import DiffusionContext
-
-
-
 
 
 
@@ -37,7 +35,12 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 	width_latent = width // 8
 	height_latent = height // 8
 
-	model = load('stable_diffusion_v1')
+
+	if not config.weights.stable_diffusion:
+		raise Exception('no weights file path specified for stable diffusion')
+	
+
+	model = load_stable_diffusion(config.weights.stable_diffusion)
 	cond = model.get_learned_conditioning([prompt] * params.count)
 	uncond = model.get_learned_conditioning([prompt_negative] * params.count)
 
