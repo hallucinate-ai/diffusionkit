@@ -1,4 +1,4 @@
-from diffusionkit.modules.utils import resize_image
+from .image import resize_image
 
 
 progress_callback = None

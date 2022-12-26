@@ -36,7 +36,6 @@ class DDPM(nn.Module):
 	# classic DDPM with Gaussian diffusion, in image space
 	def __init__(self,
 		unet,
-		conditioning_key,
 		timesteps=1000,
 		beta_schedule="linear",
 		loss_type="l2",
@@ -60,7 +59,7 @@ class DDPM(nn.Module):
 
 		assert parameterization in ["eps", "x0", "v"], 'currently only supporting "eps" and "x0" and "v"'
 
-		self.model = DiffusionWrapper(unet, conditioning_key)
+		self.model = unet
 		self.parameterization = parameterization
 		self.cond_stage_model = None
 		self.clip_denoised = clip_denoised
@@ -477,6 +476,7 @@ class DDPM(nn.Module):
 class LatentDiffusion(DDPM):
 	def __init__(
 		self,
+		unet,
 		first_stage,
 		cond_stage,
 		num_timesteps_cond=1,
@@ -493,9 +493,10 @@ class LatentDiffusion(DDPM):
 	):
 		self.num_timesteps_cond = num_timesteps_cond
 		self.scale_by_std = scale_by_std
+		self.conditioning_key = conditioning_key
 
 		super().__init__(
-			conditioning_key=conditioning_key,
+			unet=DiffusionWrapper(unet, conditioning_key),
 			*args, 
 			**kwargs
 		)
