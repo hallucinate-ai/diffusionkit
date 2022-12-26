@@ -16,7 +16,7 @@ class KSampler(SamplerInterface):
 		self.denoiser = MaskedCompVisDenoiser(model)
 
 
-	def sample(self, ctx, noise, cond, uncond, steps, init_latent=None, mask=None):
+	def sample(self, ctx, noise, cond, uncond, steps, init_latent=None, mask=None, image_conditioning=None):
 		sigmas = self.denoiser.get_sigmas(ctx.params.steps)
 
 		if init_latent is not None:
@@ -26,7 +26,12 @@ class KSampler(SamplerInterface):
 			sigmas = sigmas[offset:]
 		else:
 			x = noise * sigmas[0]
-			
+
+
+		if mask is not None:
+			mask = torch.nn.functional.interpolate(mask, size=noise.shape[-2:])
+			mask_inverse = 1.0 - mask
+
 
 		def denoise(x, sigma):
 			denoised = self.denoiser(
@@ -36,7 +41,9 @@ class KSampler(SamplerInterface):
 				uncond=uncond, 
 				cond_scale=ctx.params.cfg_scale, 
 				init_latent=init_latent, 
-				mask=mask
+				mask=mask,
+				mask_inverse=mask_inverse,
+				image_conditioning=image_conditioning
 			)
 
 			if ctx.wants_intermediate():

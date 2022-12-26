@@ -72,6 +72,7 @@ def load_stable_diffusion(path):
 	)
 
 	model.load_state_dict(checkpoint['state_dict'], strict=False)
+	model.is_inpainting_model = model.conditioning_key in ('hybrid', 'concat')
 	model.half()
 	model.cuda()
 	model.eval()

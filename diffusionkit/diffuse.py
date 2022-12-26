@@ -6,7 +6,8 @@ from math import ceil
 from . import config
 from .loader import load_stable_diffusion
 from .interfaces import DiffuseParams, SamplerInterface
-from .modules.utils import create_random_tensors, latent_to_images, resize_image
+from .image import resize_image, image_to_tensor
+from .modules.utils import create_random_tensors, latent_to_images
 from .context import DiffusionContext
 
 
@@ -48,25 +49,14 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 
 	if image:
 		image = resize_image(image, width, height)
-		image = image.convert('RGB')
-		image = np.array(image, dtype=np.float32)
-		image = 2. * (image / 255.0) - 1.
-		image = np.transpose(image, (2, 0, 1))
-		image = np.tile(image, (batch_size, 1, 1, 1))
-		image = torch.from_numpy(image)
-		image = image.half()
-		image = image.cuda()
+		image = image_to_tensor(image)
 
 	if mask:
-		mask = mask.convert('RGBA')
-		mask = resize_image(mask, width=width_latent, height=height_latent)
-		mask = mask.split()[1]
-		mask = np.array(mask).astype(np.float32) / 255.0
-		mask = np.expand_dims(mask, axis=0)
-		mask = np.tile(mask, (4, 1, 1))
-		mask = torch.from_numpy(mask)
-		mask = mask.half()
-		mask = mask.cuda()
+		mask = mask.convert('L')
+		mask = resize_image(mask, width, height)
+		mask = image_to_tensor(mask)
+
+	assert mask is not None if model.is_inpainting_model else True, 'the loaded model is an inpainting model and thus needs an image and mask'
 
 
 	with torch.no_grad(), torch.autocast('cuda'):
@@ -84,6 +74,28 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 		else:
 			denoising_steps = params.steps
 			ctx.report_sampling_steps(denoising_steps)
+
+		
+		if model.is_inpainting_model:
+			conditioning_mask = mask
+
+			print(image.shape, mask.shape)
+
+			conditioning_image = torch.lerp(
+				image,
+				image * (1.0 - conditioning_mask),
+				1 # todo: make parameter inpainting_mask_weight
+			)
+
+			conditioning_encoding = model.encode_first_stage(conditioning_image)
+			conditioning_image = model.get_first_stage_encoding(conditioning_encoding)
+			conditioning_mask = torch.nn.functional.interpolate(conditioning_mask, size=init_latent.shape[-2:])
+			conditioning_mask = conditioning_mask.expand(conditioning_image.shape[0], -1, -1, -1)
+
+			image_conditioning = torch.cat([conditioning_mask, conditioning_image], dim=1)
+			image_conditioning = image_conditioning.cuda().half()
+		else:
+			image_conditioning = None
 
 
 		for i in range(0, params.count, batch_size):
@@ -108,7 +120,8 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 					uncond=uncond, 
 					steps=denoising_steps, 
 					init_latent=init_latent, 
-					mask=mask
+					mask=mask,
+					image_conditioning=image_conditioning
 				)
 
 			ctx.report_stage('decode')
