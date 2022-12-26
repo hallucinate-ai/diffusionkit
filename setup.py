@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name='diffusionkit',
-	version='0.14',
+	version='0.15',
 	packages=[
 		'diffusionkit',
 		'diffusionkit.configs',
@@ -15,10 +15,6 @@ setup(
 		'Pillow',
 		'scipy',
 		'einops',
-		'omegaconf',
 		'transformers'
-	],
-	package_data={
-		'diffusionkit.configs': ['*.yaml']
-	}
+	]
 )
