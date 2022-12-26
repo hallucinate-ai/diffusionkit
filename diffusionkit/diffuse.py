@@ -6,7 +6,7 @@ from math import ceil
 from . import config
 from .loader import load_stable_diffusion
 from .interfaces import DiffuseParams, SamplerInterface
-from .image import resize_image, image_to_tensor
+from .image import resize_image, image_to_tensor, mask_to_tensor
 from .modules.utils import create_random_tensors, latent_to_images
 from .context import DiffusionContext
 
@@ -36,6 +36,14 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 	width_latent = width // 8
 	height_latent = height // 8
 
+	if image:
+		image = resize_image(image, width, height)
+		image = image_to_tensor(image)
+
+	if mask:
+		mask = resize_image(mask, width, height)
+		mask = mask_to_tensor(mask)
+
 
 	if not config.weights.stable_diffusion:
 		raise Exception('no weights file path specified for stable diffusion')
@@ -46,15 +54,6 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 	uncond = model.get_learned_conditioning([prompt_negative] * params.count)
 
 	sampler.use_model(model)
-
-	if image:
-		image = resize_image(image, width, height)
-		image = image_to_tensor(image)
-
-	if mask:
-		mask = mask.convert('L')
-		mask = resize_image(mask, width, height)
-		mask = image_to_tensor(mask)
 
 	assert mask is not None if model.is_inpainting_model else True, 'the loaded model is an inpainting model and thus needs an image and mask'
 
@@ -77,10 +76,7 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 
 		
 		if model.is_inpainting_model:
-			conditioning_mask = mask
-
-			print(image.shape, mask.shape)
-
+			conditioning_mask = torch.round(mask)
 			conditioning_image = torch.lerp(
 				image,
 				image * (1.0 - conditioning_mask),
@@ -125,6 +121,9 @@ def diffuse(params: DiffuseParams, sampler: SamplerInterface, image: Image = Non
 				)
 
 			ctx.report_stage('decode')
+
+			#latent_mask = torch.nn.functional.interpolate(mask, size=(height_latent, width_latent))
+			#samples = samples * (1.0 - latent_mask) + init_latent * latent_mask
 
 			images = latent_to_images(samples, model)
 

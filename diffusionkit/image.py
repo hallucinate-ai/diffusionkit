@@ -4,27 +4,29 @@ from PIL import Image
 
 
 def image_to_tensor(image):
-	if image.mode == 'RGBA':
-		image = image.to('RGB')
-
-	if image.mode == 'RGB':
-		image = np.array(image, dtype=np.float32)
-		image = 2. * (image / 255.0) - 1.
-		image = torch.from_numpy(image)
-		image = torch.permute(image, (2, 0, 1))
-		image = image.unsqueeze(0)
-
-	elif image.mode == 'L':
-		image = np.array(image, dtype=np.float32)
-		image = 2. * (image / 255.0) - 1.
-		image = torch.from_numpy(image)
-		image = image.unsqueeze(0)
-		image = image.unsqueeze(0)
-	
+	image = image.convert('RGB')
+	image = np.array(image, dtype=np.float32)
+	image = 2. * (image / 255.0) - 1.
+	image = torch.from_numpy(image)
+	image = torch.permute(image, (2, 0, 1))
+	image = image.unsqueeze(0)
 	image = image.half()
 	image = image.cuda()
 
 	return image
+
+def mask_to_tensor(mask):
+	mask = mask.convert('L')
+	mask = np.array(mask, dtype=np.float32)
+	mask = mask / 255.0
+	mask = torch.from_numpy(mask)
+	mask = mask.unsqueeze(0)
+	mask = mask.unsqueeze(0)
+	mask = mask.half()
+	mask = mask.cuda()
+
+	return mask
+
 
 
 def resize_image(im, width, height, mode='stretch'):
