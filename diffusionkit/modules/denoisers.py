@@ -96,11 +96,16 @@ class MaskedCompVisDenoiser(CompVisDenoiser):
 	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None, mask_inverse=None, image_conditioning=None):
 		x_in = torch.cat([x] * 2)
 		sigma_in = torch.cat([sigma] * 2)
-		cond_and_uncond = torch.cat([uncond, cond])
-		cond_in = cond_and_uncond if image_conditioning is None else {'c_crossattn': [cond_and_uncond], 'c_concat': [torch.cat([image_conditioning] * 2)]}
+		image_conditioning = torch.cat([image_conditioning] * 2)
+		cond_and_uncond = torch.cat([cond, uncond])
 
-		uncond, cond = super().forward(x_in, sigma_in, cond=cond_in).chunk(2)
+		cond_in = (
+			cond_and_uncond if image_conditioning is None 
+			else {'c_crossattn': [cond_and_uncond], 'c_concat': [image_conditioning]}
+		)
 
+		cond, uncond = super().forward(x_in, sigma_in, cond=cond_in).chunk(2)
+		
 		denoised = uncond + (cond - uncond) * cond_scale
 
 		if mask is not None:
