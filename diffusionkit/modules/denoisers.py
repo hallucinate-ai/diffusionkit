@@ -93,11 +93,13 @@ class CompVisDenoiser(DiscreteEpsDDPMDenoiser):
 
 
 class MaskedCompVisDenoiser(CompVisDenoiser):
-	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None, mask_inverse=None, image_conditioning=None):
+	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None,  image_conditioning=None):
 		x_in = torch.cat([x] * 2)
 		sigma_in = torch.cat([sigma] * 2)
-		image_conditioning = torch.cat([image_conditioning] * 2)
 		cond_and_uncond = torch.cat([cond, uncond])
+
+		if image_conditioning:
+			image_conditioning = torch.cat([image_conditioning] * 2)
 
 		cond_in = (
 			cond_and_uncond if image_conditioning is None 
@@ -109,6 +111,7 @@ class MaskedCompVisDenoiser(CompVisDenoiser):
 		denoised = uncond + (cond - uncond) * cond_scale
 
 		if mask is not None:
+			mask_inverse = 1.0 - mask
 			denoised = (init_latent * mask_inverse) + (mask * denoised)
 
 		return denoised

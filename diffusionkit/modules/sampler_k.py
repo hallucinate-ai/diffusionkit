@@ -30,7 +30,8 @@ class KSampler(SamplerInterface):
 
 		if mask is not None:
 			mask = torch.nn.functional.interpolate(mask, size=noise.shape[-2:])
-			mask_inverse = 1.0 - mask
+		else:
+			mask_inverse = None
 
 
 		def denoise(x, sigma):
@@ -42,7 +43,6 @@ class KSampler(SamplerInterface):
 				cond_scale=ctx.params.cfg_scale, 
 				init_latent=init_latent, 
 				mask=mask,
-				mask_inverse=mask_inverse,
 				image_conditioning=image_conditioning
 			)
 
