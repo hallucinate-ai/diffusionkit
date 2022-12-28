@@ -30,8 +30,6 @@ class KSampler(SamplerInterface):
 
 		if mask is not None:
 			mask = torch.nn.functional.interpolate(mask, size=noise.shape[-2:])
-		else:
-			mask_inverse = None
 
 
 		def denoise(x, sigma):
@@ -215,3 +213,35 @@ class schedule_lms:
 		]
 
 		return x + sum(coeff * d for coeff, d in zip(coeffs, reversed(self.ds)))
+
+
+
+class schedule_dpmpp_2m:
+	def __init__(self, sigmas, denoise):
+		self.denoise = denoise
+		self.sigmas = sigmas
+		self.old_denoised = None
+
+	def sigma_fn(self, t):
+		return t.neg().exp()
+
+	def t_fn(self, i):
+		return self.sigmas[i].log().neg()
+
+	def step(self, x, i):
+		denoised = self.denoise(x, sigma=self.sigmas[i] * x.new_ones([x.shape[0]]))
+
+		t, t_next = self.t_fn(i), self.t_fn(i + 1)
+		h = t_next - t
+
+		if self.old_denoised is None or self.sigmas[i + 1] == 0:
+			x = (self.sigma_fn(t_next) / self.sigma_fn(t)) * x - (-h).expm1() * denoised
+		else:
+			h_last = t - self.t_fn(i - 1)
+			r = h_last / h
+			denoised_d = (1 + 1 / (2 * r)) * denoised - (1 / (2 * r)) * self.old_denoised
+			x = (self.sigma_fn(t_next) / self.sigma_fn(t)) * x - (-h).expm1() * denoised_d
+
+		self.old_denoised = denoised
+
+		return x
