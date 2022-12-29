@@ -84,6 +84,34 @@ class DiscreteEpsDDPMDenoiser(DiscreteSchedule):
 		return input + eps * c_out
 
 
+class DiscreteVDDPMDenoiser(DiscreteSchedule):
+	def __init__(self, model, alphas_cumprod, quantize):
+		super().__init__(((1 - alphas_cumprod) / alphas_cumprod) ** 0.5, quantize)
+		self.inner_model = model
+		self.sigma_data = 1.
+
+	def get_scalings(self, sigma):
+		c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
+		c_out = -sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2) ** 0.5
+		c_in = 1 / (sigma ** 2 + self.sigma_data ** 2) ** 0.5
+		return c_skip, c_out, c_in
+
+	def get_v(self, *args, **kwargs):
+		return self.inner_model(*args, **kwargs)
+
+	def loss(self, input, noise, sigma, **kwargs):
+		c_skip, c_out, c_in = [utils.append_dims(x, input.ndim) for x in self.get_scalings(sigma)]
+		noised_input = input + noise * utils.append_dims(sigma, input.ndim)
+		model_output = self.get_v(noised_input * c_in, self.sigma_to_t(sigma), **kwargs)
+		target = (input - c_skip * noised_input) / c_out
+		return (model_output - target).pow(2).flatten(1).mean(1)
+
+	def forward(self, input, sigma, **kwargs):
+		c_skip, c_out, c_in = [utils.append_dims(x, input.ndim) for x in self.get_scalings(sigma)]
+		return self.get_v(input * c_in, self.sigma_to_t(sigma), **kwargs) * c_out + input * c_skip
+
+
+
 class CompVisDenoiser(DiscreteEpsDDPMDenoiser):
 	def __init__(self, model, quantize=False, device='cpu'):
 		super().__init__(model, model.alphas_cumprod, quantize=quantize)
@@ -92,13 +120,47 @@ class CompVisDenoiser(DiscreteEpsDDPMDenoiser):
 		return self.inner_model.apply_model(*args, **kwargs)
 
 
+class CompVisVDenoiser(DiscreteVDDPMDenoiser):
+    def __init__(self, model, quantize=False, device='cpu'):
+        super().__init__(model, model.alphas_cumprod, quantize=quantize)
+
+    def get_v(self, x, t, cond, **kwargs):
+        return self.inner_model.apply_model(x, t, cond, **kwargs)
+
+
+
 class MaskedCompVisDenoiser(CompVisDenoiser):
 	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None,  image_conditioning=None):
 		x_in = torch.cat([x] * 2)
 		sigma_in = torch.cat([sigma] * 2)
 		cond_and_uncond = torch.cat([cond, uncond])
 
-		if image_conditioning:
+		if image_conditioning is not None:
+			image_conditioning = torch.cat([image_conditioning] * 2)
+
+		cond_in = (
+			cond_and_uncond if image_conditioning is None 
+			else {'c_crossattn': [cond_and_uncond], 'c_concat': [image_conditioning]}
+		)
+
+		cond, uncond = super().forward(x_in, sigma_in, cond=cond_in).chunk(2)
+		
+		denoised = uncond + (cond - uncond) * cond_scale
+
+		if mask is not None:
+			mask_inverse = 1.0 - mask
+			denoised = (init_latent * mask_inverse) + (mask * denoised)
+
+		return denoised
+
+
+class MaskedCompVisVDenoiser(CompVisVDenoiser):
+	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None,  image_conditioning=None):
+		x_in = torch.cat([x] * 2)
+		sigma_in = torch.cat([sigma] * 2)
+		cond_and_uncond = torch.cat([cond, uncond])
+
+		if image_conditioning is not None:
 			image_conditioning = torch.cat([image_conditioning] * 2)
 
 		cond_in = (

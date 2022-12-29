@@ -1,7 +1,7 @@
 import torch
 
 from ..interfaces import SamplerInterface
-from .denoisers import MaskedCompVisDenoiser
+from .denoisers import MaskedCompVisDenoiser, MaskedCompVisVDenoiser
 from .utils import latent_to_images, to_d, linear_multistep_coeff, get_ancestral_step
 
 
@@ -13,7 +13,10 @@ class KSampler(SamplerInterface):
 
 	def use_model(self, model):
 		self.model = model
-		self.denoiser = MaskedCompVisDenoiser(model)
+		self.denoiser = (
+			MaskedCompVisVDenoiser(model) if model.is_v_model
+			else MaskedCompVisDenoiser(model)
+		)
 
 
 	def sample(self, ctx, noise, cond, uncond, steps, init_latent=None, mask=None, image_conditioning=None):
