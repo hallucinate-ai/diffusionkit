@@ -2,10 +2,9 @@ from setuptools import setup
 
 setup(
 	name='diffusionkit',
-	version='0.15',
+	version='0.16',
 	packages=[
 		'diffusionkit',
-		'diffusionkit.configs',
 		'diffusionkit.models',
 		'diffusionkit.models.diffusion',
 		'diffusionkit.modules',
@@ -15,6 +14,7 @@ setup(
 		'Pillow',
 		'scipy',
 		'einops',
-		'transformers'
+		'transformers>=4.25.1',
+		'open-clip-torch==2.7.0'
 	]
 )
