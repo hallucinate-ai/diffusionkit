@@ -467,14 +467,9 @@ class UNetModel(nn.Module):
 		use_linear_in_transformer=False,
 	):
 		super().__init__()
+		
 		if use_spatial_transformer:
 			assert context_dim is not None, 'Fool!! You forgot to include the dimension of your cross-attention conditioning...'
-
-		if context_dim is not None:
-			assert use_spatial_transformer, 'Fool!! You forgot to use the spatial transformer for your cross-attention conditioning...'
-			from omegaconf.listconfig import ListConfig
-			if type(context_dim) == ListConfig:
-				context_dim = list(context_dim)
 
 		if num_heads_upsample == -1:
 			num_heads_upsample = num_heads
