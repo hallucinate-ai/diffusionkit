@@ -8,6 +8,7 @@ setup(
 		'diffusionkit.models',
 		'diffusionkit.models.diffusion',
 		'diffusionkit.modules',
+		'diffusionkit.modules.samplers',
 		'diffusionkit.modules.diffusion',
 	],
 	install_requires=[

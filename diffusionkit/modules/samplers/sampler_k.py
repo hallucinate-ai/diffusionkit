@@ -1,8 +1,8 @@
 import torch
 
-from ..interfaces import SamplerInterface
-from .denoisers import MaskedCompVisDenoiser, MaskedCompVisVDenoiser
-from .utils import latent_to_images, to_d, linear_multistep_coeff, get_ancestral_step
+from ...interfaces import SamplerInterface
+from ..denoisers import MaskedCompVisDenoiser, MaskedCompVisVDenoiser
+from ..utils import latent_to_images, to_d, linear_multistep_coeff, get_ancestral_step
 
 
 class KSampler(SamplerInterface):
@@ -53,8 +53,7 @@ class KSampler(SamplerInterface):
 			return denoised
 
 
-		schedule = globals()['schedule_%s' % self.schedule]
-		scheduler = schedule(sigmas, denoise=denoise, **self.schedule_args)
+		scheduler = self.schedule(sigmas, denoise=denoise, **self.schedule_args)
 
 		steps = len(sigmas) - 1
 

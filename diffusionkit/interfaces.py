@@ -6,6 +6,7 @@ class DiffuseParams:
 	prompt_negative: str = ''
 	width: int = None
 	height: int = None
+	sampler: str = 'k_lms'
 	steps: int = 50
 	cfg_scale: float = 5.0
 	denoising_strength: float = 0.75

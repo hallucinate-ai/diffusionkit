@@ -1,9 +1,9 @@
 import torch
 import numpy as np
 
-from ..interfaces import SamplerInterface
-from .denoisers import MaskedCompVisDenoiser
-from .diffusion.util import make_ddim_timesteps, make_ddim_sampling_parameters, extract_into_tensor
+from ...interfaces import SamplerInterface
+from ..denoisers import MaskedCompVisDenoiser
+from ..diffusion.util import make_ddim_timesteps, make_ddim_sampling_parameters, extract_into_tensor
 
 
 class KSampler(SamplerInterface):
