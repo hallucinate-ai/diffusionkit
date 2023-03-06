@@ -13,7 +13,7 @@ intermediate_callback = None
 intermediate_count = None
 
 class DiffusionContext:
-	def __init__(self, params, image):
+	def __init__(self, params, image=None):
 		self.params = params
 		self.image = image
 		self.sampling_steps = 0

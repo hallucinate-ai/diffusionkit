@@ -1,3 +1,2 @@
-from .diffuse import diffuse, DiffuseParams
-from .modules.sampler_k import KSampler
+from .diffuse import txt2img, img2img, Txt2ImgParams, Img2ImgParams
 from .context import progress_tracking, intermediates

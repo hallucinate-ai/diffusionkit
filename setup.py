@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name='diffusionkit',
-	version='0.17',
+	version='0.18',
 	packages=[
 		'diffusionkit',
 		'diffusionkit.models',
