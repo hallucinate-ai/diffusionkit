@@ -1,8 +1,8 @@
 import torch
 import gc
-from .models.diffusion.ddpm import LatentDiffusion
+from .modules.diffusion.ddpm import LatentDiffusion
 from .modules.diffusion.openaimodel import UNetModel
-from .models.autoencoder import AutoencoderKL
+from .modules.autoencoder import AutoencoderKL
 from .modules.encoders import FrozenCLIPEmbedder, FrozenOpenCLIPEmbedder
 
 models = dict()

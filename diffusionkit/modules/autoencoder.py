@@ -1,8 +1,7 @@
 import torch
 import torch.nn.functional as F
-from ..modules.diffusion.model import Encoder, Decoder
-from ..modules.distributions import DiagonalGaussianDistribution
-from ..modules.utils import instantiate_from_config
+from .diffusion.model import Encoder, Decoder
+from .distributions import DiagonalGaussianDistribution
 
 
 class AutoencoderKL(torch.nn.Module):
