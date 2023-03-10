@@ -12,7 +12,6 @@ from ...modules.utils import log_txt_as_img, exists, default, ismap, isimage, me
 from ...modules.distributions import normal_kl, DiagonalGaussianDistribution
 from ...models.autoencoder import IdentityFirstStage, AutoencoderKL
 from ...modules.diffusion.util import make_beta_schedule, extract_into_tensor, noise_like
-from ...models.diffusion.ddim import DDIMSampler
 
 
 __conditioning_keys__ = {
@@ -1016,19 +1015,6 @@ class LatentDiffusion(DDPM):
 								  verbose=verbose, timesteps=timesteps, quantize_denoised=quantize_denoised,
 								  mask=mask, x0=x0)
 
-	@torch.no_grad()
-	def sample_log(self, cond, batch_size, ddim, ddim_steps, **kwargs):
-		if ddim:
-			ddim_sampler = DDIMSampler(self)
-			shape = (self.channels, self.image_size, self.image_size)
-			samples, intermediates = ddim_sampler.sample(ddim_steps, batch_size,
-														 shape, cond, verbose=False, **kwargs)
-
-		else:
-			samples, intermediates = self.sample(cond=cond, batch_size=batch_size,
-												 return_intermediates=True, **kwargs)
-
-		return samples, intermediates
 
 	@torch.no_grad()
 	def get_unconditional_conditioning(self, batch_size, null_label=None):
