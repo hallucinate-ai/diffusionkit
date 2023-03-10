@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
 import open_clip
-from functools import partial
 from transformers import CLIPTokenizer, CLIPTextModel, logging
-from .. import config
 
 
 logging.set_verbosity_error()

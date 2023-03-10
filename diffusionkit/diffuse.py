@@ -3,9 +3,8 @@ import numpy as np
 from PIL import Image
 from math import ceil
 
-from . import config
 from .loader import load_stable_diffusion
-from .interfaces import Txt2ImgParams, Img2ImgParams
+from .interfaces import DiffusionModelConfig, Txt2ImgParams, Img2ImgParams
 from .image import resize_image, image_to_tensor, mask_to_tensor
 from .modules.utils import create_random_tensors, latent_to_images
 from .modules.samplers import pick_sampler
@@ -14,7 +13,7 @@ from .context import DiffusionContext
 
 
 
-def txt2img(params: Txt2ImgParams):
+def txt2img(config: DiffusionModelConfig, params: Txt2ImgParams):
 	ctx = DiffusionContext(params=params)
 	ctx.report_stage('init')
 	
@@ -28,13 +27,9 @@ def txt2img(params: Txt2ImgParams):
 	height = ceil(params.height / 64) * 64
 	width_latent = width // 8
 	height_latent = height // 8
-
-
-	if not config.weights.stable_diffusion:
-		raise Exception('no weights file path specified for stable diffusion')
 	
 	sampler = pick_sampler(params.sampler)
-	model = load_stable_diffusion(config.weights.stable_diffusion)
+	model = load_stable_diffusion(config)
 	cond = model.get_learned_conditioning([prompt] * params.count)
 	uncond = model.get_learned_conditioning([prompt_negative] * params.count)
 
@@ -74,7 +69,7 @@ def txt2img(params: Txt2ImgParams):
 
 
 
-def img2img(params: Img2ImgParams, image: Image, mask: Image = None):
+def img2img(config: DiffusionModelConfig, params: Img2ImgParams, image: Image, mask: Image = None):
 	assert 0. <= params.denoising_strength <= 1, 'denoising_strength must be between [0.0, 1.0]'
 	assert image is not None if mask is not None else True, 'image must be set if mask is set'
 
@@ -106,11 +101,8 @@ def img2img(params: Img2ImgParams, image: Image, mask: Image = None):
 		mask = mask_to_tensor(mask)
 
 
-	if not config.weights.stable_diffusion:
-		raise Exception('no weights file path specified for stable diffusion')
-	
 	sampler = pick_sampler(params.sampler)
-	model = load_stable_diffusion(config.weights.stable_diffusion)
+	model = load_stable_diffusion(config)
 	cond = model.get_learned_conditioning([prompt] * params.count)
 	uncond = model.get_learned_conditioning([prompt_negative] * params.count)
 
