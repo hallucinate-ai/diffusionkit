@@ -121,30 +121,61 @@ class CompVisDenoiser(DiscreteEpsDDPMDenoiser):
 
 
 class CompVisVDenoiser(DiscreteVDDPMDenoiser):
-    def __init__(self, model, quantize=False, device='cpu'):
-        super().__init__(model, model.alphas_cumprod, quantize=quantize)
+	def __init__(self, model, quantize=False, device='cpu'):
+		super().__init__(model, model.alphas_cumprod, quantize=quantize)
 
-    def get_v(self, x, t, cond, **kwargs):
-        return self.inner_model.apply_model(x, t, cond, **kwargs)
+	def get_v(self, x, t, cond, **kwargs):
+		return self.inner_model.apply_model(x, t, cond, **kwargs)
 
 
 
-class MaskedCompVisDenoiser(CompVisDenoiser):
+class MaskedDenoiser:
 	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None,  image_conditioning=None):
+		batch_size = 1
 		x_in = torch.cat([x] * 2)
 		sigma_in = torch.cat([sigma] * 2)
-		cond_and_uncond = torch.cat([cond, uncond])
 
 		if image_conditioning is not None:
 			image_conditioning = torch.cat([image_conditioning] * 2)
 
-		cond_in = (
-			cond_and_uncond if image_conditioning is None 
-			else {'c_crossattn': [cond_and_uncond], 'c_concat': [image_conditioning]}
-		)
+		if cond.shape[1] == uncond.shape[1]:
+			cond_and_uncond = torch.cat([cond, uncond])
+			x_out = super().forward(
+				x_in, 
+				sigma_in, 
+				cond=(
+					cond_and_uncond if image_conditioning is None 
+					else {'c_crossattn': [cond_and_uncond], 'c_concat': [image_conditioning]}
+				)
+			)
+		else:
+			x_out = torch.zeros_like(x_in)
 
-		cond, uncond = super().forward(x_in, sigma_in, cond=cond_in).chunk(2)
+			for batch_offset in range(0, cond.shape[0], batch_size * 2):
+				a = batch_offset
+				b = min(a + batch_size, cond.shape[0])
+				c_crossattn = [cond[a:b]]
+			
+				x_out[a:b] = super().forward(
+					x_in[a:b], 
+					sigma_in[a:b], 
+					cond=(
+						c_crossattn if image_conditioning is None 
+						else {'c_crossattn': [c_crossattn], 'c_concat': [image_conditioning[a:b]]}
+					)
+				)
+
+			x_out[-uncond.shape[0]:] = super().forward(
+				x_in[-uncond.shape[0]:], 
+				sigma_in[-uncond.shape[0]:], 
+				cond=(
+					uncond if image_conditioning is None 
+					else {'c_crossattn': [uncond], 'c_concat': [image_conditioning[-uncond.shape[0]:]]}
+				)
+			)
+
 		
+		cond, uncond = x_out.chunk(2)
 		denoised = uncond + (cond - uncond) * cond_scale
 
 		if mask is not None:
@@ -154,26 +185,8 @@ class MaskedCompVisDenoiser(CompVisDenoiser):
 		return denoised
 
 
-class MaskedCompVisVDenoiser(CompVisVDenoiser):
-	def forward(self, x, sigma, cond, uncond, cond_scale, init_latent=None, mask=None,  image_conditioning=None):
-		x_in = torch.cat([x] * 2)
-		sigma_in = torch.cat([sigma] * 2)
-		cond_and_uncond = torch.cat([cond, uncond])
+class MaskedCompVisDenoiser(MaskedDenoiser, CompVisDenoiser):
+	pass
 
-		if image_conditioning is not None:
-			image_conditioning = torch.cat([image_conditioning] * 2)
-
-		cond_in = (
-			cond_and_uncond if image_conditioning is None 
-			else {'c_crossattn': [cond_and_uncond], 'c_concat': [image_conditioning]}
-		)
-
-		cond, uncond = super().forward(x_in, sigma_in, cond=cond_in).chunk(2)
-		
-		denoised = uncond + (cond - uncond) * cond_scale
-
-		if mask is not None:
-			mask_inverse = 1.0 - mask
-			denoised = (init_latent * mask_inverse) + (mask * denoised)
-
-		return denoised
+class MaskedCompVisVDenoiser(MaskedDenoiser, CompVisVDenoiser):
+	pass

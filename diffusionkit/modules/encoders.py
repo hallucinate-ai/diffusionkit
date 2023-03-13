@@ -2,9 +2,17 @@ import torch
 import torch.nn as nn
 import open_clip
 from transformers import CLIPTokenizer, CLIPTextModel, logging
+from .prompt import parse_prompt_weights
 
 
 logging.set_verbosity_error()
+
+
+class PromptChunk:
+	def __init__(self):
+		self.tokens = []
+		self.multipliers = []
+		self.fixes = []
 
 
 class AbstractEncoder(nn.Module):
@@ -16,12 +24,15 @@ class AbstractEncoder(nn.Module):
 
 
 class FrozenCLIPEmbedder(AbstractEncoder):
-	def __init__(self, pretrained, device='cuda', max_length=77):
+	def __init__(self, pretrained, device='cuda', max_length=75):
 		super().__init__()
 		
+		self.device = device
 		self.tokenizer = CLIPTokenizer.from_pretrained(pretrained, local_files_only=True)
 		self.transformer = CLIPTextModel.from_pretrained(pretrained, local_files_only=True)
-		self.device = device
+		self.vocab = self.tokenizer.get_vocab()
+		self.token_start = self.tokenizer.bos_token_id
+		self.token_end = self.tokenizer.eos_token_id
 		self.max_length = max_length
 		self.freeze()
 
@@ -31,23 +42,106 @@ class FrozenCLIPEmbedder(AbstractEncoder):
 			param.requires_grad = False
 
 	def forward(self, text):
-		batch_encoding = self.tokenizer(
-			text, 
-			truncation=True, 
-			max_length=self.max_length, 
-			return_length=True, 
-			return_overflowing_tokens=False, 
-			padding='max_length', 
-			return_tensors='pt'
-		)
+		batch = []
 
-		tokens = batch_encoding['input_ids'].to(self.device)
-		outputs = self.transformer(input_ids=tokens)
+		for line in text:
+			parsed = parse_prompt_weights(line)
 
-		return outputs.last_hidden_state
+			batch_encoding = self.tokenizer(
+				[text for text, _ in parsed], 
+				truncation=True, 
+				max_length=self.max_length, 
+				return_length=True, 
+				return_overflowing_tokens=False, 
+				padding='max_length', 
+				return_tensors='pt'
+			)
+
+			batch.append(
+				self.make_weighted_chunks(
+					[text for text, _ in parsed],
+					batch_encoding['input_ids'],
+					[weight for _, weight in parsed],
+				)
+			)
+			
+		zs = []
+		chunks_len = max([len(x) for x in batch])
+
+		for i in range(chunks_len):
+			chunk = [chunks[i] if i < len(chunks) else self.empty_chunk() for chunks in batch]
+			
+			tokens = torch.asarray([x.tokens for x in chunk]).to(self.device)
+			multipliers = torch.asarray([x.multipliers for x in chunk]).to(self.device)
+			#self.hijack.fixes = [x.fixes for x in chunk]
+
+			z = self.transformer(input_ids=tokens).last_hidden_state
+
+			original_mean = z.mean()
+			z = z * multipliers.reshape(multipliers.shape + (1,)).expand(z.shape)
+			new_mean = z.mean()
+			z = z * (original_mean / new_mean)
+
+			zs.append(z)
+
+		return torch.hstack(zs)
+
 
 	def encode(self, text):
 		return self(text)
+
+	def make_weighted_chunks(self, texts, tokens, weights):
+		chunks = []
+		chunk = PromptChunk()
+		token_count = 0
+		last_comma = -1
+
+		def next_chunk(is_last=False):
+			nonlocal token_count
+			nonlocal last_comma
+			nonlocal chunk
+
+			if is_last:
+				token_count += len(chunk.tokens)
+			else:
+				token_count += self.max_length
+
+			to_add = self.max_length - len(chunk.tokens)
+
+			if to_add > 0:
+				chunk.tokens += [self.token_end] * to_add
+				chunk.multipliers += [1.0] * to_add
+
+			chunk.tokens = [self.token_start] + chunk.tokens + [self.token_end]
+			chunk.multipliers = [1.0] + chunk.multipliers + [1.0]
+
+			last_comma = -1
+			chunks.append(chunk)
+			chunk = PromptChunk()
+
+		for text, toks, weight in zip(texts, tokens, weights):
+			if text == 'BREAK' and weight == -1:
+				next_chunk()
+				continue
+
+			position = 0
+
+			while position < len(toks):
+				token = toks[position]
+
+				if len(chunk.tokens) == self.max_length:
+					next_chunk()
+				
+				chunk.tokens.append(token)
+				chunk.multipliers.append(weight)
+				position += 1
+
+		if len(chunk.tokens) > 0 or len(chunks) == 0:
+			next_chunk(is_last=True)
+
+		return chunks
+
+
 
 
 class FrozenOpenCLIPEmbedder(AbstractEncoder):
