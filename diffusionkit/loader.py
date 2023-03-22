@@ -123,3 +123,8 @@ def unload(name):
 	del models[name]
 	gc.collect()
 	torch.cuda.empty_cache()
+
+
+def unload_all_models():
+	for name in models.keys():
+		unload(name)
