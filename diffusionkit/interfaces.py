@@ -7,6 +7,13 @@ class DiffusionModelConfig:
 	checkpoint_clip: str
 
 @dataclass
+class ControlDiffusionModelConfig:
+	checkpoint_sd: str
+	checkpoint_ctrl: str
+	checkpoint_clip: str
+
+
+@dataclass
 class Txt2ImgParams:
 	prompt: str
 	prompt_negative: str = ''
@@ -40,7 +47,7 @@ class Ctrl2ImgParams:
 	sampler: str = 'k_lms'
 	steps: int = 50
 	cfg_scale: float = 5.0
-	denoising_strength: float = 0.75
+	ctrl_strength: float = 2
 	seed: int = 0
 	count: int = 1
 
