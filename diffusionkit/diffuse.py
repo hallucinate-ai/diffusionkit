@@ -71,13 +71,6 @@ def txt2img(config: DiffusionModelConfig, params: Txt2ImgParams):
 
 def img2img(config: DiffusionModelConfig, params: Img2ImgParams, image: Image, mask: Image = None):
 	assert 0. <= params.denoising_strength <= 1, 'denoising_strength must be between [0.0, 1.0]'
-	assert image is not None if mask is not None else True, 'image must be set if mask is set'
-
-	if not params.width or not params.height:
-		assert image is not None, 'either set width and height or supply an image'
-		params.width = image.width
-		params.height = image.height
-
 
 	ctx = DiffusionContext(params=params, image=image)
 	ctx.report_stage('init')
@@ -87,6 +80,10 @@ def img2img(config: DiffusionModelConfig, params: Img2ImgParams, image: Image, m
 	prompt = params.prompt
 	prompt_negative = params.prompt_negative
 	seeds = [params.seed + x for x in range(params.count)]
+
+	if not params.width or not params.height:
+		params.width = image.width
+		params.height = image.height
 
 	width = ceil(params.width / 64) * 64
 	height = ceil(params.height / 64) * 64
@@ -108,7 +105,7 @@ def img2img(config: DiffusionModelConfig, params: Img2ImgParams, image: Image, m
 
 	sampler.use_model(model)
 
-	assert mask is not None if model.is_inpainting_model else True, 'the loaded model is an inpainting model and thus needs an image and mask'
+	assert mask is not None if model.is_inpainting_model else True, 'the loaded model is an inpainting model and thus needs a mask'
 
 
 	with torch.no_grad(), torch.autocast('cuda'):
@@ -122,7 +119,6 @@ def img2img(config: DiffusionModelConfig, params: Img2ImgParams, image: Image, m
 
 		first_encoding = model.encode_first_stage(image)
 		init_latent = model.get_first_stage_encoding(first_encoding)
-		
 		
 		if model.is_inpainting_model:
 			conditioning_mask = torch.round(mask)
