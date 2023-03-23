@@ -181,5 +181,5 @@ def unload(name):
 
 
 def unload_all_models():
-	for name in models.keys():
+	for name in list(models.keys()):
 		unload(name)
