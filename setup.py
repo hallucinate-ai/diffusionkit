@@ -5,8 +5,6 @@ setup(
 	version='0.18',
 	packages=[
 		'diffusionkit',
-		'diffusionkit.models',
-		'diffusionkit.models.diffusion',
 		'diffusionkit.modules',
 		'diffusionkit.modules.samplers',
 		'diffusionkit.modules.diffusion',
