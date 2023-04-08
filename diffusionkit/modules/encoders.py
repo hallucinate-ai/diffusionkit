@@ -30,16 +30,16 @@ class FrozenCLIPEmbedder(AbstractEncoder):
 		self.device = device
 		self.tokenizer = CLIPTokenizer.from_pretrained(pretrained, local_files_only=True)
 		self.transformer = CLIPTextModel.from_pretrained(pretrained, local_files_only=True)
+		self.transformer = self.transformer.eval()
 		self.vocab = self.tokenizer.get_vocab()
 		self.token_start = self.tokenizer.bos_token_id
 		self.token_end = self.tokenizer.eos_token_id
 		self.max_length = max_length
-		self.freeze()
 
-	def freeze(self):
-		self.transformer = self.transformer.eval()
 		for param in self.parameters():
 			param.requires_grad = False
+
+
 
 	def forward(self, text):
 		batch = []
