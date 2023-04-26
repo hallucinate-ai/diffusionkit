@@ -1,5 +1,6 @@
 import torch
 import gc
+from safetensors import safe_open
 from .modules.diffusion.ddpm import LatentDiffusion
 from .modules.diffusion.openaimodel import UNetModel
 from .modules.autoencoder import AutoencoderKL
@@ -13,9 +14,14 @@ def load_stable_diffusion(config, controlnet=False):
 	if config.checkpoint_sd in models:
 		return models[config.checkpoint_sd]
 
-
-	checkpoint = torch.load(config.checkpoint_sd, map_location='cpu')
-	state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
+	if config.checkpoint_sd.endswith('.safetensor'):
+		state_dict = {}
+		with safe_open(config.checkpoint_sd, framework='pt', device='cpu') as f:
+			for key in f.keys():
+				state_dict[key] = f.get_tensor(key)
+	else:
+		checkpoint = torch.load(config.checkpoint_sd, map_location='cpu')
+		state_dict = checkpoint['state_dict'] if 'state_dict' in checkpoint else checkpoint
 
 	is_v2_model, is_inpainting_model = guess_stable_diffusion_version(state_dict)
 	is_v_model = is_v2_model and not is_inpainting_model # ugly hack
