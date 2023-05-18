@@ -14,7 +14,7 @@ def load_stable_diffusion(config, controlnet=False):
 	if config.checkpoint_sd in models:
 		return models[config.checkpoint_sd]
 
-	if config.checkpoint_sd.endswith('.safetensor'):
+	if '.safetensor' in config.checkpoint_sd:
 		state_dict = {}
 		with safe_open(config.checkpoint_sd, framework='pt', device='cpu') as f:
 			for key in f.keys():
@@ -158,6 +158,8 @@ def load_stable_diffusion(config, controlnet=False):
 			cond_stage=cond_stage,
 			**latent_diffusion_config,
 		)
+
+	print(state_dict['model.diffusion_model.input_blocks.1.0.out_layers.3.weight'].dtype)
 
 	model.load_state_dict(state_dict, strict=False)
 	model.is_inpainting_model = is_inpainting_model
